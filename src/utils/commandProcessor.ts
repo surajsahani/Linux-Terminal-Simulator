@@ -1,4 +1,6 @@
 import { FileSystem } from './fileSystem';
+import { ping, virtualMachines } from './network';
+import { getChallenge } from './security';
 
 interface CommandOutput {
   content: string[];
@@ -74,6 +76,36 @@ export const processCommand = (
       }
       return { output };
     
+    case 'ping':
+      if (args.length < 2) {
+        output.content = ['ping: missing operand'];
+        output.type = 'error';
+        return { output };
+      }
+      output.content = [ping(args[1])];
+      return { output };
+
+    case 'ssh':
+      if (args.length < 2) {
+        output.content = ['ssh: missing operand'];
+        output.type = 'error';
+        return { output };
+      }
+      const vm = virtualMachines.find((vm) => vm.ip === args[1] || vm.name === args[1]);
+      if (vm && vm.isOnline) {
+        const challenge = getChallenge(vm);
+        if (challenge) {
+          output.content = [challenge.prompt];
+          output.type = 'challenge';
+        } else {
+          output.content = [`Successfully connected to ${vm.name}`];
+        }
+      } else {
+        output.content = [`ssh: connect to host ${args[1]} port 22: Connection timed out`];
+        output.type = 'error';
+      }
+      return { output };
+
     case 'help':
       output.content = [
         'Available commands:',
@@ -90,6 +122,8 @@ export const processCommand = (
         'whoami           - Display current user',
         'date             - Display current date',
         'uname [-a]       - Display system information',
+        'ping [ip]        - Ping an IP address',
+        'ssh [user@ip]    - Connect to a remote host',
         'help             - Display this help message',
         '',
         'Use arrow up/down to navigate command history',

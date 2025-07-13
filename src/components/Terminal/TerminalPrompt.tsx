@@ -7,13 +7,17 @@ interface TerminalPromptProps {
   onCommand: (command: string) => void;
   commandHistory: CommandHistoryType[];
   fileSystem: FileSystem;
+  user: string;
+  host: string;
 }
 
-const TerminalPrompt: React.FC<TerminalPromptProps> = ({ 
-  currentPath, 
-  onCommand, 
+const TerminalPrompt: React.FC<TerminalPromptProps> = ({
+  currentPath,
+  onCommand,
   commandHistory,
-  fileSystem
+  fileSystem,
+  user,
+  host,
 }) => {
   const [command, setCommand] = useState('');
   const [historyPosition, setHistoryPosition] = useState(-1);
@@ -41,34 +45,36 @@ const TerminalPrompt: React.FC<TerminalPromptProps> = ({
       setCommand('');
       setShowCompletions(false);
       setTabCompletions([]);
-    } 
-    else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length > 0) {
-        const newPosition = historyPosition < commandHistory.length - 1 
-          ? historyPosition + 1 
-          : historyPosition;
-        
+        const newPosition =
+          historyPosition < commandHistory.length - 1
+            ? historyPosition + 1
+            : historyPosition;
+
         setHistoryPosition(newPosition);
         if (newPosition >= 0) {
-          setCommand(commandHistory[commandHistory.length - 1 - newPosition].command);
+          setCommand(
+            commandHistory[commandHistory.length - 1 - newPosition].command
+          );
         }
       }
-    } 
-    else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyPosition > 0) {
         const newPosition = historyPosition - 1;
         setHistoryPosition(newPosition);
-        setCommand(commandHistory[commandHistory.length - 1 - newPosition].command);
+        setCommand(
+          commandHistory[commandHistory.length - 1 - newPosition].command
+        );
       } else if (historyPosition === 0) {
         setHistoryPosition(-1);
         setCommand('');
       }
-    }
-    else if (e.key === 'Tab') {
+    } else if (e.key === 'Tab') {
       e.preventDefault();
-      
+
       if (showCompletions && tabCompletions.length > 0) {
         // Cycle through existing completions
         const nextIndex = (tabIndex + 1) % tabCompletions.length;
@@ -77,18 +83,31 @@ const TerminalPrompt: React.FC<TerminalPromptProps> = ({
       } else {
         // Generate new completions
         const parts = command.split(' ');
-        
+
         if (parts.length <= 1) {
           // Complete command
           const availableCommands = [
-            'cd', 'ls', 'mkdir', 'touch', 'cat', 'echo', 'pwd', 
-            'clear', 'rm', 'help', 'date', 'whoami', 'uname'
+            'cd',
+            'ls',
+            'mkdir',
+            'touch',
+            'cat',
+            'echo',
+            'pwd',
+            'clear',
+            'rm',
+            'help',
+            'date',
+            'whoami',
+            'uname',
+            'ping',
+            'ssh',
           ];
-          
-          const matches = availableCommands.filter(cmd => 
+
+          const matches = availableCommands.filter((cmd) =>
             cmd.startsWith(command.toLowerCase())
           );
-          
+
           if (matches.length === 1) {
             setCommand(matches[0] + ' ');
             setShowCompletions(false);
@@ -101,40 +120,45 @@ const TerminalPrompt: React.FC<TerminalPromptProps> = ({
           // Complete file/directory path
           const lastPart = parts[parts.length - 1];
           const basePath = lastPart.startsWith('/') ? '' : currentPath;
-          
-          const searchPath = lastPart.startsWith('/') 
-            ? lastPart 
+
+          const searchPath = lastPart.startsWith('/')
+            ? lastPart
             : `${basePath}/${lastPart}`.replace(/\/+/g, '/');
-          
+
           const dirPath = searchPath.substring(0, searchPath.lastIndexOf('/') + 1);
           const prefix = searchPath.substring(searchPath.lastIndexOf('/') + 1);
-          
+
           try {
             const items = fileSystem.listDir(dirPath);
-            const matches = items.filter(item => item.startsWith(prefix));
-            
+            const matches = items.filter((item) => item.startsWith(prefix));
+
             if (matches.length === 1) {
               const isDir = fileSystem.isDirectory(`${dirPath}${matches[0]}`);
-              const completion = parts.slice(0, -1).join(' ') + ' ' + 
-                (lastPart.startsWith('/') 
+              const completion =
+                parts.slice(0, -1).join(' ') +
+                ' ' +
+                (lastPart.startsWith('/')
                   ? `${dirPath}${matches[0]}${isDir ? '/' : ''}`
-                  : (dirPath === currentPath + '/' 
-                    ? matches[0] + (isDir ? '/' : '')
-                    : `${dirPath}${matches[0]}${isDir ? '/' : ''}`));
-              
+                  : dirPath === currentPath + '/'
+                  ? matches[0] + (isDir ? '/' : '')
+                  : `${dirPath}${matches[0]}${isDir ? '/' : ''}`);
+
               setCommand(completion);
               setShowCompletions(false);
             } else if (matches.length > 1) {
-              const completions = matches.map(match => {
+              const completions = matches.map((match) => {
                 const isDir = fileSystem.isDirectory(`${dirPath}${match}`);
-                return parts.slice(0, -1).join(' ') + ' ' + 
-                  (lastPart.startsWith('/') 
+                return (
+                  parts.slice(0, -1).join(' ') +
+                  ' ' +
+                  (lastPart.startsWith('/')
                     ? `${dirPath}${match}${isDir ? '/' : ''}`
-                    : (dirPath === currentPath + '/' 
-                      ? match + (isDir ? '/' : '')
-                      : `${dirPath}${match}${isDir ? '/' : ''}`));
+                    : dirPath === currentPath + '/'
+                    ? match + (isDir ? '/' : '')
+                    : `${dirPath}${match}${isDir ? '/' : ''}`)
+                );
               });
-              
+
               setTabCompletions(completions);
               setTabIndex(0);
               setShowCompletions(true);
@@ -152,10 +176,10 @@ const TerminalPrompt: React.FC<TerminalPromptProps> = ({
   return (
     <div className="mt-2">
       <div className="flex">
-        <span className="text-green-500">user@linuxsim</span>
+        <span className="text-green-500">{user}@{host}</span>
         <span className="text-gray-400">:</span>
         <span className="text-blue-400">{currentPath}</span>
-        <span className="text-gray-400 mr-2">$</span>
+        <span className="text-gray-400 mr-2">{user === 'root' ? '#' : '$'}</span>
         <input
           ref={inputRef}
           type="text"
@@ -167,14 +191,16 @@ const TerminalPrompt: React.FC<TerminalPromptProps> = ({
         />
         <span className="cursor-blink text-gray-300">█</span>
       </div>
-      
+
       {showCompletions && tabCompletions.length > 0 && (
         <div className="mt-2 p-2 bg-gray-800 rounded command-appear">
           <div className="grid grid-cols-3 gap-2">
             {tabCompletions.map((completion, index) => (
-              <div 
-                key={index} 
-                className={`px-2 py-1 rounded ${index === tabIndex ? 'bg-blue-800' : ''}`}
+              <div
+                key={index}
+                className={`px-2 py-1 rounded ${
+                  index === tabIndex ? 'bg-blue-800' : ''
+                }`}
               >
                 {completion}
               </div>
